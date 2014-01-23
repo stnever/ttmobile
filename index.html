@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>TT Mobile</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+
+	<!-- Estilos especificos para tela de sign-in, obtidos de getbootstrap.com/examples/signin -->
+    <style>
+	body {
+	  padding-top: 40px;
+	  padding-bottom: 40px;
+	  background-color: #eee;
+	}
+
+	.form-signin {
+	  max-width: 330px;
+	  padding: 15px;
+	  margin: 0 auto;
+	}
+	.form-signin .form-signin-heading,
+	.form-signin .checkbox {
+	  margin-bottom: 10px;
+	}
+	.form-signin .checkbox {
+	  font-weight: normal;
+	}
+	.form-signin .form-control {
+	  position: relative;
+	  font-size: 16px;
+	  height: auto;
+	  padding: 10px;
+	  -webkit-box-sizing: border-box;
+		 -moz-box-sizing: border-box;
+			  box-sizing: border-box;
+	}
+	.form-signin .form-control:focus {
+	  z-index: 2;
+	}
+	.form-signin input[type="text"] {
+	  margin-bottom: -1px;
+	  border-bottom-left-radius: 0;
+	  border-bottom-right-radius: 0;
+	}
+	.form-signin input[type="password"] {
+	  margin-bottom: 10px;
+	  border-top-left-radius: 0;
+	  border-top-right-radius: 0;
+	}
+
+	/* Uma textura hipster. Melhor que nada... */
+	body {
+		background-color: #171C21;
+		background-image: url(http://subtlepatterns.subtlepatterns.netdna-cdn.com/patterns/noisy_net_@2X.png);
+	}
+
+	h3, label { color: #eee; }
+		
+	.loading {
+		width: 100%;
+		height: 32px;
+		background-position: center top;
+		background-repeat: no-repeat;
+		background-image: url(loading.gif)
+	}
+
+	.beta { color: orange; }
+
+	</style>
+  </head>
+
+  <body>
+
+    <div class="container">
+		
+      <form class="form-signin" role="form">
+	  
+		<div class="well text-center">
+			<h2></h2>
+		</div>
+	  
+        <h3 class="form-signin-heading text-center">Digite seu usuário e senha para marcar o ponto.</h3>
+		
+        <input id="txtUsername" type="text" class="form-control" placeholder="login" required autofocus>
+        <input id="txtPassword" type="password" class="form-control" placeholder="senha" required>
+		
+        <label class="checkbox">
+          <input type="checkbox" id="chkRememberMe" value="remember-me"> Guarde meu login e senha neste browser
+        </label>
+		
+        <button id="btnMark" class="btn btn-lg btn-primary btn-block" type="submit">
+			<span class="initial">Marcar!</span>
+			<span class="loading hidden">&nbsp;</span>
+			<span class="success hidden">Marcado com sucesso!</span>
+			<span class="failure hidden">Oops, algo deu errado...</span>
+		</button>
+		
+		<div class="text-center">
+			<span class="beta">cuidado: beta!</span> |
+			<a href="https://github.com/stnever/ttmobile" target="_blank">code and issues on github</a>
+		</div>
+		
+      </form>
+
+    </div> <!-- /container -->
+
+  </body>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.4.0/moment.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.0/zepto.min.js"></script>
+<script>
+	$(function() {
+	
+		var updateTime = function() {
+			$("div.well h2").html( moment().format("DD/MMM/YYYY<br>HH:mm:ss") );
+		};
+		
+		// Dispara a atualizacao do relogio agora e a cada 1 segundo.
+		window.setInterval(updateTime, 1000);
+		updateTime();
+		
+		// utilitarios
+		$.fn.showThisAndHideOthers = function() { this.removeClass('hidden').siblings().addClass('hidden'); return this; }
+		$.fn.setBtnClass = function(remainingClass) { return this.removeClass('btn-primary btn-error btn-success').addClass(remainingClass); }
+		
+		// load, save, e clear do localStorage
+		$.fn.loadFromLocalStorage = function() { this.each(function(item) { $(item).val( localStorage[ "ttmobile." + $(item).attr("id") ] ) } };
+		$.fn.saveToLocalStorage   = function() { this.each(function(item) { localStorage[ "ttmobile." + $(item).attr("id") ] = $(item).val() } };
+		$.fn.clearLocalStorage    = function() { this.each(function(item) { localStorage[ "ttmobile." + $(item).attr("id") ] = null } };
+		
+		// se existem valores no localStorage, preenche o form com eles
+		$inputs = $("#txtUsername,#txtPassword");
+		$inputs.loadFromLocalStorage();
+		
+		// quando desmarcar o checkbox, limpa os dados armazenados
+		$("#chkRememberMe").on('change', function() {
+			if ( ! $(this).val().is(":checked") )
+				$inputs.clearLocalStorage();
+		});
+		
+		// pluga funcionalidades que alteram o visual do botao principal conforme o
+		// estado da aplicacao.
+		var $btn = $("#btnMark");
+		
+		$btn
+			.on("tt:start"  , function() { $(this).setBtnClass('btn-primary').find('.loading').showThisAndHideOthers() })
+			.on("tt:success", function() { $(this).setBtnClass('btn-success').find('.success').showThisAndHideOthers() })
+			.on("tt:failure", function() { $(this).setBtnClass('btn-error'  ).find('.failure').showThisAndHideOthers() });
+		
+		// comportamento do click no botao principal
+		$btn.click(function() {
+			
+			// dispara o start (imagem de loading, etc)
+			$btn.trigger('tt:start');
+
+			// Conforme inspecionado pelo firebug, durante um apontamento
+			var data = {
+				"userName": $("#txtUsername").val(),
+				"password": $("#txtPassword").val(),
+				"dtTimeEvent": moment().format('D/M/YYYY HH:mm:ss'),
+				"dtTmFmt": "d/m/Y H:i:s",
+				
+				// os campos daqui pra baixo provavelmente sao opcionais ou irrelevantes.
+				"deviceID": "2",
+				"eventType": "1",
+				"cracha": "",
+				"costCenter": "",
+				"leave": "",
+				"func": "",
+				"cdiDispositivoAcesso": "2",
+				"cdiDriverDispositivoAcesso": "10",
+				"cdiTipoIdentificacaoAcesso": "7",
+				"oplLiberarPETurmaRVirtual": "false",
+				"cdiTipoUsoDispositivo": "1",
+				"qtiTempoAcionamento": "0",
+				"d1sEspecieAreaEvento": "Nenhuma",
+				"d1sAreaEvento": "Nenhum",
+				"d1sSubAreaEvento": "Nenhum(a)",
+				"d1sEvento": "Nenhum",
+				"oplLiberarFolhaRVirtual": "false",
+				"oplLiberarCCustoRVirtual": "false",
+				"qtiHorasFusoHorario": "0",
+				"cosEnderecoIP": "127.0.0.1",
+				"nuiPorta": "7069",
+				"oplValidaSenhaRelogVirtual": "false",
+				"useUserPwd": "true",
+				"useCracha": "false",
+				"oplLiberarFuncoesRVirtual": "false",
+				"sessionID": "0",
+				"selectedEmployee": "0",
+				"selectedCandidate": "0",
+				"selectedVacancy": "0",
+				"language": "0",
+				"dtFmt": "d/m/Y",
+				"tmFmt": "H:i:s",
+				"shTmFmt": "H:i"
+			}
+			
+			// gera o corpo do POST no formato x-www-form-urlencoded.
+			var result = [];
+			$.each(data, function(key,value) {
+				result.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
+			});
+			var body = result.join('&');
+			
+			// Dispara o post. O content-type do request por padrao ja eh x-www-form-urlencoded.
+			// O content-type que esperamos eh json.
+			// http://tt.ciandt.com/.net/index.ashx/SaveTimmingEvent
+			$.post("debug.html", body, function(data, status) {
+			
+				if ( status == 200 ) {
+				
+					// tira loading, mostra sucesso no botao, etc
+					$btn.trigger('tt:success');
+					
+					// se foi bem sucedido, e o checkbox esta marcado, guarda os dados para exibicao futura
+					if ( $("#chkRememberMe").is(":checked") )
+						$inputs.saveToLocalStorage();
+						
+				} else {
+				
+					// mostra o erro
+					$btn.trigger('tt:failure', [ data, status ]);
+				}
+				
+			}, 'json');
+		});
+	});
+</script>
+
+</html>
